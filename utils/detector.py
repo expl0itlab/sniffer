@@ -1,252 +1,352 @@
 #!/usr/bin/env python3
 
 import re
-import json
+
 
 class TechnologyDetector:
     def __init__(self):
-        self.signatures = self.load_signatures()
-    
-    def load_signatures(self):
+        self.signatures = self._load_signatures()
+
+    def _load_signatures(self):
         return {
             'cms': {
                 'WordPress': {
                     'headers': ['wp-json', 'x-powered-by: wordpress'],
-                    'meta': ['generator', 'wordpress'],
+                    'meta':    ['wordpress'],
                     'scripts': ['wp-content', 'wp-includes'],
-                    'html': ['wp-content', 'wp-admin'],
-                    'cookies': ['wordpress_', 'wp-settings']
+                    'html':    ['wp-content', 'wp-admin'],
+                    'cookies': ['wordpress_', 'wp-settings'],
                 },
                 'Drupal': {
                     'headers': ['x-generator: drupal'],
-                    'meta': ['generator', 'drupal'],
-                    'html': ['drupal.js', 'sites/all/'],
-                    'cookies': ['drupal_']
+                    'meta':    ['drupal'],
+                    'html':    ['drupal.js', 'sites/all/'],
+                    'cookies': ['drupal_'],
                 },
                 'Joomla': {
-                    'meta': ['generator', 'joomla'],
-                    'html': ['joomla', 'media/jui/'],
+                    'meta':    ['joomla'],
+                    'html':    ['joomla', 'media/jui/'],
                     'scripts': ['media/system/'],
-                    'cookies': ['joomla_']
+                    'cookies': ['joomla_'],
                 },
                 'Magento': {
-                    'html': ['magento/', 'mage/'],
+                    'html':    ['magento/', 'mage/'],
                     'cookies': ['frontend', 'adminhtml'],
-                    'headers': ['x-magento-']
-                }
+                    'headers': ['x-magento-'],
+                },
             },
-            
+
             'web_servers': {
                 'Apache': {
-                    'headers': ['server: apache', 'x-powered-by: apache']
+                    'headers': ['server: apache', 'x-powered-by: apache'],
                 },
                 'Nginx': {
-                    'headers': ['server: nginx', 'x-powered-by: nginx']
+                    'headers': ['server: nginx', 'x-powered-by: nginx'],
                 },
                 'IIS': {
-                    'headers': ['server: microsoft-iis', 'x-powered-by: asp.net']
+                    'headers': ['server: microsoft-iis', 'x-powered-by: asp.net'],
                 },
                 'Cloudflare': {
-                    'headers': ['server: cloudflare', 'cf-ray']
-                }
+                    'headers': ['server: cloudflare', 'cf-ray'],
+                },
+                'LiteSpeed': {
+                    'headers': ['server: litespeed'],
+                },
+                'Caddy': {
+                    'headers': ['server: caddy'],
+                },
             },
-            
+
             'javascript_frameworks': {
                 'React': {
                     'scripts': ['react', 'react-dom'],
-                    'html': ['__reactInternalInstance'],
-                    'global_vars': ['React', 'ReactDOM']
+                    'html':    ['__reactinternalinstance', '__reactfiber', 'data-reactroot'],
                 },
                 'Vue.js': {
-                    'scripts': ['vue', 'vue.js'],
-                    'html': ['v-bind', 'v-on'],
-                    'global_vars': ['Vue']
+                    'scripts': ['vue.js', 'vue.min.js', '/vue@'],
+                    'html':    ['v-bind:', 'v-on:', 'v-if=', 'v-for=', '__vue__'],
                 },
                 'Angular': {
-                    'scripts': ['angular', 'ng-'],
-                    'html': ['ng-app', 'ng-controller'],
-                    'global_vars': ['angular']
+                    'scripts': ['angular.js', 'angular.min.js', '/angular@'],
+                    'html':    ['ng-app', 'ng-controller', 'ng-version'],
+                },
+                'Next.js': {
+                    'html':    ['__next_data__', '_next/static'],
+                    'scripts': ['/_next/'],
+                },
+                'Nuxt.js': {
+                    'html':    ['__nuxt', 'data-n-head'],
+                    'scripts': ['/_nuxt/'],
                 },
                 'jQuery': {
-                    'scripts': ['jquery'],
-                    'global_vars': ['jQuery', '$']
-                }
+                    'scripts': ['jquery.js', 'jquery.min.js', '/jquery@'],
+                },
+                'Svelte': {
+                    'html':    ['__svelte', 'svelte-'],
+                },
+                'Ember.js': {
+                    'scripts': ['ember.js', 'ember.min.js'],
+                    'html':    ['ember-application'],
+                },
             },
-            
+
             'programming_languages': {
                 'PHP': {
                     'headers': ['x-powered-by: php'],
                     'cookies': ['phpsessid'],
-                    'html': ['.php']
+                    'html':    ['.php'],
                 },
                 'Python': {
-                    'headers': ['x-powered-by: python', 'server: wsgi'],
-                    'cookies': ['sessionid', 'csrftoken']
+                    'headers': ['x-powered-by: python', 'server: wsgi', 'server: gunicorn',
+                                'server: uvicorn'],
+                    'cookies': ['sessionid', 'csrftoken'],
                 },
                 'Ruby': {
-                    'headers': ['x-powered-by: ruby', 'x-runtime', 'server: webrick'],
-                    'cookies': ['_session_id']
+                    'headers': ['x-powered-by: ruby', 'x-runtime', 'server: webrick',
+                                'server: puma', 'server: passenger'],
+                    'cookies': ['_session_id'],
                 },
                 'Node.js': {
                     'headers': ['x-powered-by: express', 'server: node'],
-                    'cookies': ['connect.sid']
-                }
+                    'cookies': ['connect.sid'],
+                },
+                'ASP.NET': {
+                    'headers': ['x-aspnet-version', 'x-aspnetmvc-version',
+                                'x-powered-by: asp.net'],
+                    'cookies': ['asp.net_sessionid', 'aspxauth'],
+                },
             },
-            
+
             'analytics': {
                 'Google Analytics': {
-                    'scripts': ['google-analytics.com/ga.js', 'gtag.js', 'analytics.js'],
-                    'html': ['ga(\'create\'', 'gtag(\'config\'']
+                    'scripts': ['google-analytics.com/ga.js',
+                                'google-analytics.com/analytics.js',
+                                'gtag/js'],
+                    'html':    ["ga('create'", "gtag('config'"],
                 },
                 'Google Tag Manager': {
                     'scripts': ['googletagmanager.com/gtm.js'],
-                    'html': ['noscript><iframe src="//www.googletagmanager.com/ns.html']
+                    'html':    ['googletagmanager.com/ns.html'],
                 },
                 'Facebook Pixel': {
-                    'scripts': ['facebook.net/pixel.js'],
-                    'html': ['fbq(\'init\'', 'facebook pixel']
-                }
+                    'scripts': ['connect.facebook.net'],
+                    'html':    ["fbq('init'", 'facebook pixel'],
+                },
+                'Hotjar': {
+                    'scripts': ['static.hotjar.com'],
+                    'html':    ['hotjar'],
+                },
+                'Matomo': {
+                    'scripts': ['matomo.js', 'piwik.js'],
+                    'html':    ["_paq.push"],
+                },
             },
-            
+
             'cdn': {
                 'Cloudflare': {
-                    'headers': ['server: cloudflare', 'cf-ray'],
-                    'dns': ['cloudflare.com']
+                    'headers': ['server: cloudflare', 'cf-ray', 'cf-cache-status'],
                 },
                 'Amazon CloudFront': {
-                    'headers': ['server: cloudfront', 'x-amz-cf-'],
-                    'dns': ['cloudfront.net']
+                    'headers': ['server: cloudfront', 'x-amz-cf-id', 'x-amz-cf-pop'],
                 },
                 'Akamai': {
-                    'headers': ['server: akamai'],
-                    'dns': ['akamai.net', 'akamaiedge.net']
-                }
+                    'headers': ['x-akamai-transformed', 'akamai-grn', 'x-check-cacheable'],
+                },
+                'Fastly': {
+                    'headers': ['x-fastly-request-id', 'x-served-by', 'x-cache: hit, hit'],
+                },
+                'jsDelivr': {
+                    'scripts': ['cdn.jsdelivr.net'],
+                },
+                'Cloudinary': {
+                    'html':    ['cloudinary.com', 'res.cloudinary.com'],
+                },
             },
-            
+
+            'databases': {
+                'MySQL': {
+                    'html':    ['mysql_connect', 'mysqli_'],
+                    'headers': ['x-db: mysql'],
+                },
+                'MongoDB': {
+                    'html':    ['mongodb://', 'mongoose'],
+                    'headers': ['x-db: mongodb'],
+                },
+                'PostgreSQL': {
+                    'html':    ['pg_connect', 'psycopg2'],
+                    'headers': ['x-db: postgresql'],
+                },
+                'Redis': {
+                    'headers': ['x-redis', 'x-cache: redis'],
+                },
+                'Elasticsearch': {
+                    'headers': ['x-elastic-product'],
+                    'html':    ['elasticsearch'],
+                },
+            },
+
             'ecommerce': {
                 'Shopify': {
-                    'html': ['shopify.com', 'cdn.shopify.com'],
-                    'cookies': ['_shopify_']
+                    'html':    ['shopify.com', 'cdn.shopify.com'],
+                    'cookies': ['_shopify_'],
                 },
                 'WooCommerce': {
-                    'html': ['woocommerce', 'wc-'],
-                    'scripts': ['woocommerce/']
+                    'html':    ['woocommerce', 'wc-cart'],
+                    'scripts': ['woocommerce/'],
                 },
                 'PrestaShop': {
-                    'html': ['prestashop', 'prestashop.css'],
-                    'cookies': ['prestashop-']
-                }
-            }
+                    'html':    ['prestashop', 'prestashop.css'],
+                    'cookies': ['prestashop-'],
+                },
+                'OpenCart': {
+                    'html':    ['route=common/home', 'catalog/view/theme'],
+                    'cookies': ['OCSESSID'],
+                },
+                'BigCommerce': {
+                    'html':    ['bigcommerce.com', 'bc-sf-filter'],
+                    'cookies': ['SHOP_SESSION_TOKEN'],
+                },
+                'Wix': {
+                    'html':    ['wix.com', 'wixsite.com', 'wix-bolt'],
+                    'scripts': ['static.wixstatic.com'],
+                },
+            },
         }
-    
+
+
     def detect_all(self, website_data):
+        """Run all detectors and return a merged, deduplicated results dict."""
+        # Initialise with all expected keys so callers never get KeyErrors
         results = {
-            'cms': [],
-            'web_servers': [],
+            'cms':                   [],
+            'web_servers':           [],
             'javascript_frameworks': [],
             'programming_languages': [],
-            'analytics': [],
-            'cdn': [],
-            'databases': [],
-            'ecommerce': [],
-            'security': []
+            'analytics':             [],
+            'cdn':                   [],
+            'databases':             [],
+            'ecommerce':             [],
+            'security':              [],
         }
-        
-        results.update(self.detect_from_headers(website_data['headers']))
-        results.update(self.detect_from_html(website_data['content']))
-        results.update(self.detect_from_cookies(website_data['cookies']))
-        results.update(self.detect_from_scripts(website_data['content']))
-        results.update(self.detect_security_headers(website_data['headers']))
-        
+
+        sources = [
+            self._detect_from_headers(website_data['headers']),
+            self._detect_from_html(website_data['content']),
+            self._detect_from_cookies(website_data['cookies']),
+            self._detect_from_scripts(website_data['content']),
+            self._detect_security_headers(website_data['headers']),
+        ]
+
+        for source in sources:
+            for category, items in source.items():
+                for item in items:
+                    if item not in results[category]:
+                        results[category].append(item)
+
         return results
-    
-    def detect_from_headers(self, headers):
-        detected = {category: [] for category in self.signatures.keys()}
-        
+
+    def _detect_from_headers(self, headers):
+        detected = {cat: [] for cat in self.signatures}
+        lowered = {k.lower(): v.lower() for k, v in headers.items()}
+
         for category, technologies in self.signatures.items():
             for tech, patterns in technologies.items():
-                if 'headers' in patterns:
-                    for pattern in patterns['headers']:
-                        for header_name, header_value in headers.items():
-                            header_str = f"{header_name.lower()}: {header_value.lower()}"
-                            if pattern.lower() in header_str:
-                                detected[category].append(tech)
-                                break
-        
+                for pattern in patterns.get('headers', []):
+                    pattern_l = pattern.lower()
+                    # Pattern may be "header-name: value" or just a header name/fragment
+                    if ':' in pattern_l:
+                        name, _, val = pattern_l.partition(':')
+                        name = name.strip()
+                        val = val.strip()
+                        if name in lowered and val in lowered[name]:
+                            detected[category].append(tech)
+                            break
+                    else:
+                        # Match as a substring of any header name
+                        if any(pattern_l in hname for hname in lowered):
+                            detected[category].append(tech)
+                            break
+
         return detected
-    
-    def detect_from_html(self, html_content):
-        detected = {category: [] for category in self.signatures.keys()}
+
+    def _detect_from_html(self, html_content):
+        detected = {cat: [] for cat in self.signatures}
         html_lower = html_content.lower()
-        
+
         for category, technologies in self.signatures.items():
             for tech, patterns in technologies.items():
-                if 'html' in patterns:
-                    for pattern in patterns['html']:
-                        if pattern.lower() in html_lower:
-                            detected[category].append(tech)
-                            break
-                
-                if 'meta' in patterns:
-                    for pattern in patterns['meta']:
-                        meta_pattern = f'meta.*{pattern}'
-                        if re.search(meta_pattern, html_lower, re.IGNORECASE):
-                            detected[category].append(tech)
-                            break
-        
+                matched = False
+
+                for pattern in patterns.get('html', []):
+                    if pattern.lower() in html_lower:
+                        detected[category].append(tech)
+                        matched = True
+                        break
+
+                if matched:
+                    continue
+
+                for pattern in patterns.get('meta', []):
+                    meta_re = re.compile(
+                        r'<meta[^>]+content=["\'][^"\']*' + re.escape(pattern) + r'[^"\']*["\']',
+                        re.IGNORECASE
+                    )
+                    if meta_re.search(html_content):
+                        detected[category].append(tech)
+                        break
+
         return detected
-    
-    def detect_from_cookies(self, cookies):
-        detected = {category: [] for category in self.signatures.keys()}
-        
+
+    def _detect_from_cookies(self, cookies):
+        detected = {cat: [] for cat in self.signatures}
+
         for category, technologies in self.signatures.items():
             for tech, patterns in technologies.items():
-                if 'cookies' in patterns:
-                    for pattern in patterns['cookies']:
-                        for cookie_name in cookies.keys():
-                            if pattern.lower() in cookie_name.lower():
-                                detected[category].append(tech)
-                                break
-        
+                for pattern in patterns.get('cookies', []):
+                    if any(pattern.lower() in name.lower() for name in cookies):
+                        detected[category].append(tech)
+                        break
+
         return detected
-    
-    def detect_from_scripts(self, html_content):
-        detected = {category: [] for category in self.signatures.keys()}
-        
+
+    def _detect_from_scripts(self, html_content):
+        detected = {cat: [] for cat in self.signatures}
+
         for category, technologies in self.signatures.items():
             for tech, patterns in technologies.items():
-                if 'scripts' in patterns:
-                    for pattern in patterns['scripts']:
-                        script_pattern = f'script.*{pattern}'
-                        if re.search(script_pattern, html_content, re.IGNORECASE):
-                            detected[category].append(tech)
-                            break
-                
-                if 'global_vars' in patterns:
-                    for pattern in patterns['global_vars']:
-                        var_pattern = f'var {pattern}|{pattern}\.='
-                        if re.search(var_pattern, html_content):
-                            detected[category].append(tech)
-                            break
-        
+                for pattern in patterns.get('scripts', []):
+                    script_re = re.compile(
+                        r'<script[^>]+src=["\'][^"\']*' + re.escape(pattern) + r'[^"\']*["\']',
+                        re.IGNORECASE
+                    )
+                    if script_re.search(html_content):
+                        detected[category].append(tech)
+                        break
+
         return detected
-    
-    def detect_security_headers(self, headers):
+
+    def _detect_security_headers(self, headers):
         security_features = []
-        
+
         security_headers = {
-            'Content-Security-Policy': 'CSP Header',
-            'X-Content-Type-Options': 'MIME Sniffing Protection',
-            'X-Frame-Options': 'Clickjacking Protection',
-            'X-XSS-Protection': 'XSS Protection',
+            'Content-Security-Policy':   'CSP Header',
+            'X-Content-Type-Options':    'MIME Sniffing Protection',
+            'X-Frame-Options':           'Clickjacking Protection',
+            'X-XSS-Protection':          'XSS Protection',
             'Strict-Transport-Security': 'HSTS Enabled',
-            'Referrer-Policy': 'Referrer Policy',
-            'Feature-Policy': 'Feature Policy',
-            'Permissions-Policy': 'Permissions Policy'
+            'Referrer-Policy':           'Referrer Policy',
+            'Permissions-Policy':        'Permissions Policy',
+            'Cross-Origin-Opener-Policy':'COOP Header',
+            'Cross-Origin-Embedder-Policy': 'COEP Header',
         }
-        
+
+        lowered = {k.lower(): (k, v) for k, v in headers.items()}
+
         for header, description in security_headers.items():
-            if header in headers:
-                security_features.append(f"{description}: {headers[header]}")
-        
+            original_key, value = lowered.get(header.lower(), (None, None))
+            if value is not None:
+                # Truncate very long header values for display
+                display_val = value if len(value) <= 80 else value[:77] + '...'
+                security_features.append(f"{description}: {display_val}")
+
         return {'security': security_features}
